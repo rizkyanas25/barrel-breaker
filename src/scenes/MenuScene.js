@@ -488,14 +488,14 @@ export class MenuScene extends Phaser.Scene {
 
     if (!this.textures.exists('luffy_win')) {
       this.load.spritesheet('luffy_win', 'assets/luffy_win.png', {
-        frameWidth: 36,
+        frameWidth: 41,
         frameHeight: 57,
       });
     }
 
     if (!this.textures.exists('luffy_lose')) {
       this.load.spritesheet('luffy_lose', 'assets/luffy_lose.png', {
-        frameWidth: 35,
+        frameWidth: 41,
         frameHeight: 47,
         spacing: 1,
       });
@@ -559,7 +559,7 @@ export class MenuScene extends Phaser.Scene {
         key: 'luffy_win_celebrate',
         frames: this.anims.generateFrameNumbers('luffy_win', {
           start: 0,
-          end: 7,
+          end: 6,
         }),
         frameRate: 10,
         repeat: -1,
@@ -571,7 +571,7 @@ export class MenuScene extends Phaser.Scene {
         key: 'luffy_lose_loop',
         frames: this.anims.generateFrameNumbers('luffy_lose', {
           start: 0,
-          end: 6,
+          end: 5,
         }),
         frameRate: 8,
         repeat: -1,

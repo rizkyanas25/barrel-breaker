@@ -3,6 +3,9 @@ import { createProceduralSfx } from '../audio/sfx.js';
 import { playGlobalBgm } from '../audio/bgm.js';
 import { addAudioToggle } from '../audio/toggle.js';
 
+const WIN_FRAME_X_OFFSETS = [0, 3, 2, -3, -3, -2, -1];
+const LOSE_FRAME_X_OFFSETS = [0, -5, 1, -2, 0, 2];
+
 export class GameOverScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameOverScene' });
@@ -18,7 +21,18 @@ export class GameOverScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const starCount =
+      this.finalScore >= 1000
+        ? 3
+        : this.finalScore >= 400
+          ? 2
+          : this.finalScore >= 100
+            ? 1
+            : 0;
+
     const isTimeout = this.gameOverReason === 'timeout';
+    const isTimeoutLose = isTimeout && starCount === 0;
+    const showWinState = isTimeout && !isTimeoutLose;
     this.sfx = createProceduralSfx(this, { masterGain: 0.13 });
     this.events.once('shutdown', () => this.sfx?.destroy());
     playGlobalBgm(this, 'game_bgm', { volume: 0.22 });
@@ -38,21 +52,23 @@ export class GameOverScene extends Phaser.Scene {
     overlay.fillRect(0, 0, width, height);
 
     // Game Over title
+    const titleText = showWinState ? 'TIME UP' : 'GAME OVER';
+    const titleColor = showWinState ? '#66E3A3' : '#FF6B6B';
     const gameOverText = this.add
-      .text(width / 2, height * 0.1, isTimeout ? 'TIME UP' : 'GAME OVER', {
+      .text(width / 2, height * 0.1, titleText, {
         fontSize: '48px',
         fontFamily: '"Georgia", serif',
         fontStyle: 'bold',
-        color: isTimeout ? '#66E3A3' : '#FF6B6B',
+        color: titleColor,
         stroke: '#000000',
         strokeThickness: 6,
       })
       .setOrigin(0.5);
 
     // ── Result Character ──
-    const characterKey = isTimeout ? 'luffy_win' : 'luffy_lose';
-    const characterAnim = isTimeout ? 'luffy_win_celebrate' : 'luffy_lose_loop';
-    const characterScale = isTimeout ? 2.3 : 2.5;
+    const characterKey = showWinState ? 'luffy_win' : 'luffy_lose';
+    const characterAnim = showWinState ? 'luffy_win_celebrate' : 'luffy_lose_loop';
+    const characterScale = showWinState ? 2.3 : 2.5;
     const characterY = height * 0.34;
     let luffy = null;
 
@@ -63,6 +79,8 @@ export class GameOverScene extends Phaser.Scene {
         .setOrigin(0.5, 1);
       if (this.anims.exists(characterAnim)) {
         luffy.play(characterAnim, true);
+        const offsets = showWinState ? WIN_FRAME_X_OFFSETS : LOSE_FRAME_X_OFFSETS;
+        this._stabilizeCharacterX(luffy, offsets);
       }
     } else {
       luffy = this.add
@@ -70,7 +88,7 @@ export class GameOverScene extends Phaser.Scene {
         .setScale(1);
     }
 
-    if (this.isNewHigh || isTimeout) {
+    if (this.isNewHigh || showWinState) {
       this.tweens.add({
         targets: luffy,
         y: luffy.y - 8,
@@ -88,7 +106,7 @@ export class GameOverScene extends Phaser.Scene {
           '"New personal best!"',
           '"Let us go again!"',
         ]
-      : isTimeout
+      : showWinState
         ? ['"Great timing!"', '"Solid run!"', '"Ready for another one?"']
         : [
             '"I will not give up!"',
@@ -200,14 +218,6 @@ export class GameOverScene extends Phaser.Scene {
 
     // ── Star Rating ──
     const starsY = height * 0.78;
-    const starCount =
-      this.finalScore >= 1000
-        ? 3
-        : this.finalScore >= 400
-          ? 2
-          : this.finalScore >= 100
-            ? 1
-            : 0;
 
     for (let i = 0; i < 3; i++) {
       const star = this.add
@@ -292,5 +302,36 @@ export class GameOverScene extends Phaser.Scene {
     });
 
     this.cameras.main.fadeIn(400, 0, 0, 0);
+  }
+
+  _stabilizeCharacterX(sprite, frameXOffsets) {
+    const baseX = sprite.x;
+    const resolveFrameIndex = (frame) => {
+      if (!frame) return 0;
+
+      const byTextureFrame = Number(frame.textureFrame);
+      if (Number.isFinite(byTextureFrame)) return byTextureFrame;
+
+      const byFrameName = Number(frame.name);
+      if (Number.isFinite(byFrameName)) return byFrameName;
+
+      if (Number.isFinite(frame.index)) {
+        return Math.max(0, frame.index - 1);
+      }
+
+      return 0;
+    };
+
+    const applyOffset = (frame) => {
+      const frameIndex = resolveFrameIndex(frame);
+      const offset = frameXOffsets[frameIndex] ?? 0;
+      sprite.setX(baseX + offset);
+    };
+
+    applyOffset(sprite.frame);
+
+    sprite.on(Phaser.Animations.Events.ANIMATION_UPDATE, (animation, frame) => {
+      applyOffset(frame);
+    });
   }
 }
